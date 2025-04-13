@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "creditriskutilities"
+version = "1.0.0"
+description = "Reusable credit risk model evaluation and data utility functions."
+authors = [{name = "Stallon Pinto", email = "stallonpinto03@gmail.com"}, {name = "Ayush Mehul Joshi", email = "ayushmehuljoshi@gmail.com"}, {name = "Zhanerke Zhumash", email = "szhanerz@gmail.com"}]
+readme = "README.md"
+requires-python = ">=3.8"
+
+dependencies = [
+    "pandas",
+    "numpy",
+    "scikit-learn",
+    "matplotlib",
+    "seaborn"
+]
+
+[project.urls]
+"Repository" = "https://github.com/DSCI-310-2025/creditriskutilities"
