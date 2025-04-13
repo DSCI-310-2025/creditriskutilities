@@ -20,3 +20,9 @@ dependencies = [
 
 [project.urls]
 "Repository" = "https://github.com/DSCI-310-2025/creditriskutilities"
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-cov"
+]
