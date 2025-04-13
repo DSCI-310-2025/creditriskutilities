@@ -35,7 +35,7 @@ def apply_mappings(df: pd.DataFrame, mappings: dict) -> pd.DataFrame:
     df_copy = df.copy()
     for col, mapping in mappings.items():
         if col in df_copy.columns:
-            df_copy[col] = df_copy[col].map(mapping)
+            df_copy[col] = df_copy[col].map(mapping).fillna(df_copy[col])
     return df_copy
 
 # from visualization.py
@@ -58,87 +58,35 @@ def create_output_dir(path: str):
 def evaluate_model(model, X_test, y_test, model_name, output_dir, X_test_scaled=None):
     """
     Evaluate a machine learning model and save performance metrics and visualizations.
-    
-    Parameters
-    ----------
-    model : sklearn estimator
-        The trained model to evaluate
-    X_test : pandas.DataFrame or numpy.ndarray
-        Test features
-    y_test : pandas.Series or numpy.ndarray
-        True target values
-    model_name : str
-        Name of the model for saving files
-    output_dir : str
-        Directory to save evaluation results
-    X_test_scaled : pandas.DataFrame or numpy.ndarray, optional
-        Scaled test features, used if model requires scaled input
-        
-    Returns
-    -------
-    dict
-        Dictionary containing model performance metrics
-    
-    Examples
-    --------
-    >>> from sklearn.ensemble import RandomForestClassifier
-    >>> from sklearn.datasets import make_classification
-    >>> from sklearn.model_selection import train_test_split
-    >>> X, y = make_classification(random_state=42)
-    >>> X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=42)
-    >>> model = RandomForestClassifier().fit(X_train, y_train)
-    >>> metrics = evaluate_model(model, X_test, y_test, "RandomForest", "./results")
-    >>> metrics['accuracy'] > 0.7
-    True
     """
-    # Create directory if it doesn't exist
+    if not hasattr(model, "predict"):
+        raise ValueError("Provided model must have a predict method.")
+
+    if X_test is None or y_test is None:
+        raise ValueError("Both X_test and y_test must be provided.")
+
     os.makedirs(output_dir, exist_ok=True)
-    
-    # Use scaled data if provided
-    X_test_eval = X_test_scaled if X_test_scaled is not None else X_test
-    
-    # Make predictions
-    y_pred = model.predict(X_test_eval)
-    y_pred_proba = model.predict_proba(X_test_eval)[:, 1] if hasattr(model, "predict_proba") else None
-    
-    # Calculate metrics
-    accuracy = accuracy_score(y_test, y_pred)
-    precision = precision_score(y_test, y_pred)
-    recall = recall_score(y_test, y_pred)
-    f1 = f1_score(y_test, y_pred)
-    
+
+    X_eval = X_test_scaled if X_test_scaled is not None else X_test
+    y_pred = model.predict(X_eval)
+
+    # Compute metrics
+    metrics = _compute_classification_metrics(y_test, y_pred)
+    metrics['model_name'] = model_name
+
     # Print metrics
     print(f"\n{model_name} Performance:")
-    print(f"Accuracy: {accuracy:.4f}")
-    print(f"Precision: {precision:.4f}")
-    print(f"Recall: {recall:.4f}")
-    print(f"F1 Score: {f1:.4f}")
+    for k, v in metrics.items():
+        if k != 'model_name':
+            print(f"{k.capitalize()}: {v:.4f}")
+
+    # Save outputs
+    _save_classification_report(y_test, y_pred, model_name, output_dir)
+    _plot_confusion_matrix(y_test, y_pred, model_name, output_dir)
+
+    return metrics
     
-    # Save classification report
-    report = classification_report(y_test, y_pred, target_names=['Good Credit', 'Bad Credit'], output_dict=True)
-    report_df = pd.DataFrame(report).transpose()
-    report_df.to_csv(os.path.join(output_dir, f'{model_name.lower().replace(" ", "_")}_classification_report.csv'))
     
-    # Plot confusion matrix
-    plt.figure(figsize=(8, 6))
-    cm = confusion_matrix(y_test, y_pred)
-    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', 
-                xticklabels=['Good Credit', 'Bad Credit'],
-                yticklabels=['Good Credit', 'Bad Credit'])
-    plt.title(f'Confusion Matrix - {model_name}', fontsize=14, fontweight='bold')
-    plt.ylabel('True Label', fontsize=12)
-    plt.xlabel('Predicted Label', fontsize=12)
-    plt.tight_layout()
-    plt.savefig(os.path.join(output_dir, f'{model_name.lower().replace(" ", "_")}_confusion_matrix.png'), dpi=300)
-    plt.close()
-    
-    return {
-        'model_name': model_name,
-        'accuracy': accuracy,
-        'precision': precision,
-        'recall': recall,
-        'f1': f1,
-    }
 
 def plot_feature_importance(model, feature_names, output_dir, n_top=15):
     """
@@ -179,6 +127,9 @@ def plot_feature_importance(model, feature_names, output_dir, n_top=15):
     if not hasattr(model, 'feature_importances_'):
         raise AttributeError("Model does not have feature_importances_ attribute")
     
+    if len(model.feature_importances_) != len(feature_names):
+        raise ValueError("Number of feature names must match the number of feature importances.")
+    
     # Create directory if it doesn't exist
     os.makedirs(output_dir, exist_ok=True)
     
@@ -204,41 +155,42 @@ def plot_feature_importance(model, feature_names, output_dir, n_top=15):
 def compare_models(model_metrics_list, output_dir):
     """
     Compare multiple models and visualize their performance metrics.
-    
+
     Parameters
     ----------
     model_metrics_list : list of dict
-        List of dictionaries containing model metrics from evaluate_model function
+        List of dictionaries containing model metrics from evaluate_model function.
     output_dir : str
-        Directory to save comparison results
-        
+        Directory to save comparison results.
+
     Returns
     -------
-    pandas.DataFrame
-        DataFrame containing model comparison metrics
-        
+    pd.DataFrame
+        DataFrame containing model comparison metrics.
+
     Raises
     ------
     ValueError
-        If model_metrics_list is empty
+        If model_metrics_list is empty.
     """
-    # Check if the list is empty
     if not model_metrics_list:
-        raise ValueError("Model metrics list cannot be empty")
-        
-    # Create directory if it doesn't exist
+        raise ValueError("Model metrics list cannot be empty.")
+
     os.makedirs(output_dir, exist_ok=True)
-    
+
     # Create comparison DataFrame
     models_comparison = pd.DataFrame(model_metrics_list)
     models_comparison = models_comparison.set_index('model_name')
-    
-    # Save model comparison
+
+    # Save comparison CSV
     models_comparison.to_csv(os.path.join(output_dir, 'model_comparison.csv'))
-    
-    # Plot model comparison
+
+    # Dynamically select columns to plot
+    plot_columns = [col for col in ['accuracy', 'precision', 'recall', 'f1'] if col in models_comparison.columns]
+
+    # Plot
     plt.figure(figsize=(12, 6))
-    models_comparison[['accuracy', 'precision', 'recall', 'f1']].plot(kind='bar', colormap='viridis')
+    models_comparison[plot_columns].plot(kind='bar', colormap='viridis')
     plt.title('Model Performance Comparison', fontsize=14, fontweight='bold')
     plt.ylabel('Score', fontsize=12)
     plt.ylim(0, 1)
@@ -247,5 +199,41 @@ def compare_models(model_metrics_list, output_dir):
     plt.tight_layout()
     plt.savefig(os.path.join(output_dir, 'model_comparison.png'), dpi=300)
     plt.close()
-    
+
     return models_comparison
+
+#helper functions
+def _compute_classification_metrics(y_true, y_pred):
+    """Compute basic classification metrics."""
+    return {
+        'accuracy': accuracy_score(y_true, y_pred),
+        'precision': precision_score(y_true, y_pred),
+        'recall': recall_score(y_true, y_pred),
+        'f1': f1_score(y_true, y_pred),
+    }
+
+def _save_classification_report(y_true, y_pred, model_name, output_dir):
+    """Generate and save classification report to CSV."""
+    report = classification_report(
+        y_true, y_pred,
+        target_names=['Good Credit', 'Bad Credit'],
+        output_dict=True
+    )
+    df = pd.DataFrame(report).transpose()
+    filename = f"{model_name.lower().replace(' ', '_')}_classification_report.csv"
+    df.to_csv(os.path.join(output_dir, filename))
+
+def _plot_confusion_matrix(y_true, y_pred, model_name, output_dir):
+    """Generate and save confusion matrix plot."""
+    cm = confusion_matrix(y_true, y_pred)
+    plt.figure(figsize=(8, 6))
+    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues',
+                xticklabels=['Good Credit', 'Bad Credit'],
+                yticklabels=['Good Credit', 'Bad Credit'])
+    plt.title(f'Confusion Matrix - {model_name}', fontsize=14, fontweight='bold')
+    plt.ylabel('True Label')
+    plt.xlabel('Predicted Label')
+    plt.tight_layout()
+    filename = f"{model_name.lower().replace(' ', '_')}_confusion_matrix.png"
+    plt.savefig(os.path.join(output_dir, filename), dpi=300)
+    plt.close()
