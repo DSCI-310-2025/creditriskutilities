@@ -24,11 +24,19 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e .[dev]
 
-      - name: Run tests with pytest
+      - name: Run tests with coverage and JUnit output
         run: |
-          pytest --cov=creditriskutilities --cov-report=xml
+          pytest --cov=creditriskutilities \
+                 --cov-report=xml \
+                 --junitxml=junit.xml \
+                 -o junit_family=legacy
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
         with:
           files: coverage.xml
+
+      - name: Upload test results to Codecov
+        uses: codecov/test-results-action@v1
+        with:
+          files: junit.xml

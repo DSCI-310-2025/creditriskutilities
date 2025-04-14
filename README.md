@@ -1,4 +1,4 @@
-# creditriskutils
+# creditriskutilities
 
 [![CI](https://github.com/DSCI-310-2025/creditriskutils/actions/workflows/ci.yml/badge.svg)](https://github.com/DSCI-310-2025/creditriskutils/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/DSCI-310-2025/creditriskutils/branch/main/graph/badge.svg)](https://codecov.io/gh/DSCI-310-2025/creditriskutils)
