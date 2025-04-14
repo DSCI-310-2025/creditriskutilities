@@ -1,6 +1,5 @@
 # creditriskutilities
 
-[![CI](https://github.com/DSCI-310-2025/creditriskutils/actions/workflows/ci.yml/badge.svg)](https://github.com/DSCI-310-2025/creditriskutils/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/DSCI-310-2025/creditriskutils/branch/main/graph/badge.svg)](https://codecov.io/gh/DSCI-310-2025/creditriskutils)
 
 `creditriskutilities` is a lightweight Python package developed to streamline the evaluation and comparison of credit risk classification models. The package abstracts commonly repeated tasks in model assessment — such as computing classification metrics, visualizing feature importance, applying value mappings, and generating side-by-side model comparisons — into standalone, reusable functions. These functions are especially useful in credit analytics pipelines, where consistent and interpretable model evaluation is critical.
