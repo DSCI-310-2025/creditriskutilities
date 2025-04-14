@@ -1,11 +1,13 @@
 name: Continuous Integration
 
-on: [push, pull_request]
+on:
+  push:
+    branches: [ main ]
+  pull_request:
 
 jobs:
   test:
     runs-on: ubuntu-latest
-
     strategy:
       matrix:
         python-version: ["3.10", "3.11"]
@@ -22,21 +24,14 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -e .[dev]
+          pip install pytest pytest-cov
+          pip install -e .
 
-      - name: Run tests with coverage and JUnit output
+      - name: Run tests and generate coverage report
         run: |
-          pytest --cov=creditriskutilities \
-                 --cov-report=xml \
-                 --junitxml=junit.xml \
-                 -o junit_family=legacy
+          pytest --cov=creditriskutilities --cov-report=xml --junitxml=junit.xml -o junit_family=legacy
 
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v5
         with:
-          files: coverage.xml
-
-      - name: Upload test results to Codecov
-        uses: codecov/test-results-action@v1
-        with:
-          files: junit.xml
+          token: ${{ secrets.CODECOV_TOKEN }}
